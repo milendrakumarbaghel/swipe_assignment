@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum InterviewStatus {
+  PENDING_INFO
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum MessageSender {
+  SYSTEM
+  INTERVIEWER
+  INTERVIEWEE
+  AI
+}
+
+model Candidate {
+  id         String              @id @default(cuid())
+  name       String
+  email      String              @unique
+  phone      String?
+  resumeUrl  String?
+  resumeName String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  interviews InterviewSession[]
+
+  @@index([name])
+  @@index([email])
+}
+
+model InterviewSession {
+  id                   String             @id @default(cuid())
+  candidate            Candidate          @relation(fields: [candidateId], references: [id])
+  candidateId          String
+  status               InterviewStatus    @default(PENDING_INFO)
+  startedAt            DateTime?
+  completedAt          DateTime?
+  currentQuestionIndex Int                @default(0)
+  finalScore           Float?
+  summary              String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  questions            InterviewQuestion[]
+  answers              CandidateAnswer[]
+  messages             ChatMessage[]
+
+  @@index([status])
+  @@index([candidateId])
+}
+
+model QuestionTemplate {
+  id         Int                 @id @default(autoincrement())
+  difficulty Difficulty
+  prompt     String
+  category   String              @default("fullstack")
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  interviews InterviewQuestion[]
+}
+
+model InterviewQuestion {
+  id           String            @id @default(cuid())
+  session      InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId    String
+  template     QuestionTemplate? @relation(fields: [templateId], references: [id])
+  templateId   Int?
+  order        Int
+  difficulty   Difficulty
+  prompt       String
+  expectedNote String?
+  createdAt    DateTime          @default(now())
+  answers      CandidateAnswer[]
+
+  @@unique([sessionId, order])
+}
+
+model CandidateAnswer {
+  id               String            @id @default(cuid())
+  question         InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId       String
+  session          InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId        String
+  responseText     String?
+  timeTakenSeconds Int               @default(0)
+  autoSubmitted    Boolean           @default(false)
+  score            Float?
+  aiFeedback       String?
+  createdAt        DateTime          @default(now())
+}
+
+model ChatMessage {
+  id        String           @id @default(cuid())
+  session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  sender    MessageSender
+  content   String
+  meta      Json?
+  createdAt DateTime         @default(now())
+
+  @@index([sessionId])
+  @@index([sender])
+}
