@@ -1,21 +1,36 @@
 const notFoundHandler = (req, res, next) => {
-  res.status(404).json({
-    message: 'Resource not found',
-    path: req.originalUrl,
-  });
+    res.status(404).json({
+        message: 'Resource not found',
+        path: req.originalUrl,
+    });
 };
 
+// eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
-  // eslint-disable-next-line no-console
-  console.error(err);
-  const status = err.status || 500;
-  res.status(status).json({
-    message: err.message || 'Internal server error',
-    details: err.details || null,
-  });
+    let status = err.status || 500;
+    let message = err.message || 'Internal server error';
+    let details = err.details || null;
+
+    if (err.name === 'MulterError') {
+        status = 400;
+        message = err.message || 'File upload failed';
+    }
+
+    if (err.array && typeof err.array === 'function') {
+        status = 400;
+        details = err.array();
+    }
+
+    // eslint-disable-next-line no-console
+    console.error(err);
+
+    res.status(status).json({
+        message,
+        details,
+    });
 };
 
 module.exports = {
-  notFoundHandler,
-  errorHandler,
+    notFoundHandler,
+    errorHandler,
 };

@@ -9,7 +9,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node prisma/seed.js",
-    "test": "echo \"No backend tests yet\""
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",

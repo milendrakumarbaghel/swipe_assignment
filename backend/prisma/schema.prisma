@@ -72,10 +72,13 @@ model QuestionTemplate {
   id         Int                 @id @default(autoincrement())
   difficulty Difficulty
   prompt     String
+  expectedNote String?
   category   String              @default("fullstack")
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
   interviews InterviewQuestion[]
+
+  @@unique([prompt, difficulty], name: "prompt_difficulty")
 }
 
 model InterviewQuestion {
