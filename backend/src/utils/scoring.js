@@ -21,6 +21,10 @@ function calculateScore(answerText, expectedNote, difficulty, timeTakenSeconds, 
         return {
             score: 0,
             feedback: 'No substantial answer was provided.',
+            strengths: undefined,
+            improvements: ['Provide a more complete response.'],
+            source: 'heuristic',
+            model: null,
         };
     }
 
@@ -49,29 +53,43 @@ function calculateScore(answerText, expectedNote, difficulty, timeTakenSeconds, 
     score = Math.max(0, Math.min(10, Number(score.toFixed(2))));
 
     const feedbackParts = [];
+    const strengths = [];
+    const improvements = [];
+
     if (matchedKeywords.length) {
         feedbackParts.push(
             `Good coverage of key topics (${matchedKeywords.slice(0, 5).join(', ')}).`
         );
+        strengths.push(`Covered key topics: ${matchedKeywords.slice(0, 5).join(', ')}`);
     } else if (keywords.length) {
         feedbackParts.push('Consider addressing core keywords highlighted in the question.');
+        improvements.push(`Incorporate keywords such as ${keywords.slice(0, 5).join(', ')}`);
     }
 
     if (tokens.length < 25) {
         feedbackParts.push('Answer could include more depth or examples.');
+        improvements.push('Add more depth or concrete examples.');
+    } else if (tokens.length > 60) {
+        strengths.push('Provided an in-depth and thorough response.');
     }
 
     if (timeTakenSeconds > timeLimitSeconds) {
         feedbackParts.push('Answer exceeded the recommended time limit.');
+        improvements.push('Stay within the recommended time limit.');
     }
 
     if (!feedbackParts.length) {
         feedbackParts.push('Solid answer with well-structured explanation.');
+        strengths.push('Answer was well structured and comprehensive.');
     }
 
     return {
         score,
         feedback: feedbackParts.join(' '),
+        strengths: strengths.length ? strengths : undefined,
+        improvements: improvements.length ? improvements : undefined,
+        source: 'heuristic',
+        model: null,
     };
 }
 

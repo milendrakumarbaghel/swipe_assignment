@@ -20,7 +20,7 @@ export default function WelcomeBackModal({ visible, session, timer, onResume, on
             cancelText="Start over"
             onOk={onResume}
             okButtonProps={{ loading: confirmLoading }}
-            destroyOnClose
+            destroyOnHidden
             maskClosable={false}
         >
             <Space direction="vertical" size="small">

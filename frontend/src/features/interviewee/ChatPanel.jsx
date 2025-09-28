@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Divider, Flex, Input, Space, Tag, Timeline, Typography, message } from 'antd';
+import { Alert, App as AntdApp, Button, Card, Divider, Flex, Input, Space, Spin, Tag, Timeline, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { useAppDispatch } from '../../store/hooks';
 import {
@@ -25,12 +25,14 @@ export default function ChatPanel({
     timer,
     status,
     loading,
+    pendingAction,
 }) {
     const dispatch = useAppDispatch();
     const [answer, setAnswer] = useState('');
     const [remaining, setRemaining] = useState(secondsRemaining(timer));
     const autoSubmitRef = useRef(false);
     const scrollRef = useRef(null);
+    const { message } = AntdApp.useApp();
 
     const currentQuestion = useMemo(() => {
         if (!session) return null;
@@ -130,6 +132,7 @@ export default function ChatPanel({
     };
 
     const isCompleted = status === 'completed';
+    const aiReviewing = pendingAction === 'submitAnswer';
 
     return (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -193,16 +196,92 @@ export default function ChatPanel({
                                 }}
                             >
                                 <Space direction="vertical" style={{ width: '100%' }}>
-                                    <Flex justify="space-between">
+                                    <Flex justify="space-between"
+                                        align="center"
+                                        wrap
+                                        gap={8}
+                                    >
                                         <Text strong>{messageItem.sender}</Text>
-                                        <Text type="secondary">{dayjs(messageItem.createdAt).format('HH:mm')}</Text>
+                                        <Space wrap size={4}>
+                                            {messageItem.meta?.aiSource && (
+                                                <Tag color={messageItem.meta.aiSource === 'ai' ? 'blue' : 'volcano'}>
+                                                    {messageItem.meta.aiSource === 'ai' ? 'AI generated' : 'Template fallback'}
+                                                </Tag>
+                                            )}
+                                            {typeof messageItem.meta?.difficulty === 'string' && (
+                                                <Tag color="purple">{difficultyLabel(messageItem.meta.difficulty)}</Tag>
+                                            )}
+                                            {typeof messageItem.meta?.score === 'number' && (
+                                                <Tag color="geekblue">Score: {messageItem.meta.score.toFixed(1)}</Tag>
+                                            )}
+                                            {messageItem.meta?.aiModel && (
+                                                <Tag color="cyan">Model: {messageItem.meta.aiModel}</Tag>
+                                            )}
+                                            {messageItem.meta?.summarySource && (
+                                                <Tag color={messageItem.meta.summarySource === 'ai' ? 'blue' : 'gold'}>
+                                                    Summary via {messageItem.meta.summarySource === 'ai' ? 'AI' : 'rules'}
+                                                </Tag>
+                                            )}
+                                            {typeof messageItem.meta?.aiEnabled === 'boolean' && (
+                                                <Tag color={messageItem.meta.aiEnabled ? 'green' : 'volcano'}>
+                                                    AI {messageItem.meta.aiEnabled ? 'ready' : 'disabled'}
+                                                </Tag>
+                                            )}
+                                            <Text type="secondary">{dayjs(messageItem.createdAt).format('HH:mm')}</Text>
+                                        </Space>
                                     </Flex>
                                     <Text>{messageItem.content}</Text>
+                                    {Array.isArray(messageItem.meta?.strengths) && messageItem.meta.strengths.length > 0 && (
+                                        <div>
+                                            <Text strong>Strengths</Text>
+                                            <ul style={{ margin: '4px 0 0 16px' }}>
+                                                {messageItem.meta.strengths.map((item) => (
+                                                    <li key={item}>
+                                                        <Text>{item}</Text>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {Array.isArray(messageItem.meta?.improvements) && messageItem.meta.improvements.length > 0 && (
+                                        <div>
+                                            <Text strong>Areas to improve</Text>
+                                            <ul style={{ margin: '4px 0 0 16px' }}>
+                                                {messageItem.meta.improvements.map((item) => (
+                                                    <li key={item}>
+                                                        <Text>{item}</Text>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {messageItem.meta?.aiError && (
+                                        <Alert
+                                            type="warning"
+                                            showIcon
+                                            message="AI assistance unavailable"
+                                            description={messageItem.meta.aiError}
+                                        />
+                                    )}
                                 </Space>
                             </Card>
                         ))}
                     </Space>
                 </div>
+                {aiReviewing && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Analyzing your answer"
+                        description={
+                            <Space>
+                                <Spin size="small" />
+                                <Text>Our AI is reviewing your response to provide tailored feedback.</Text>
+                            </Space>
+                        }
+                        style={{ marginBottom: 16 }}
+                    />
+                )}
                 {!isCompleted && currentQuestion && !hasCurrentAnswer && (
                     <Space direction="vertical" style={{ width: '100%' }}>
                         <Text strong>Answer the question:</Text>

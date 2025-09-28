@@ -105,6 +105,7 @@ const initialState = {
     missingFields: ['name', 'email', 'phone'],
     loading: false,
     error: null,
+    pendingAction: null,
     timer: {
         questionId: null,
         startedAt: null,
@@ -165,9 +166,11 @@ const sessionSlice = createSlice({
             .addCase(uploadResumeThunk.pending, (state) => {
                 state.loading = true;
                 state.error = null;
+                state.pendingAction = 'uploadResume';
             })
             .addCase(uploadResumeThunk.fulfilled, (state, action) => {
                 state.loading = false;
+                state.pendingAction = null;
                 const { candidate, resume, resumeText } = action.payload;
                 state.resume = resume;
                 state.resumeText = resumeText;
@@ -181,13 +184,16 @@ const sessionSlice = createSlice({
             .addCase(uploadResumeThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.error?.message || 'Failed to process resume';
+                state.pendingAction = null;
             })
             .addCase(startInterviewThunk.pending, (state) => {
                 state.loading = true;
                 state.error = null;
+                state.pendingAction = 'startInterview';
             })
             .addCase(startInterviewThunk.fulfilled, (state, action) => {
                 state.loading = false;
+                state.pendingAction = null;
                 state.session = action.payload;
                 state.status = 'active';
                 const currentQuestion = nextQuestionFromSession(state.session);
@@ -196,13 +202,16 @@ const sessionSlice = createSlice({
             .addCase(startInterviewThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.error?.message || 'Failed to start interview';
+                state.pendingAction = null;
             })
             .addCase(resumeSessionThunk.pending, (state) => {
                 state.loading = true;
                 state.error = null;
+                state.pendingAction = 'resumeSession';
             })
             .addCase(resumeSessionThunk.fulfilled, (state, action) => {
                 state.loading = false;
+                state.pendingAction = null;
                 state.session = action.payload;
                 state.status = action.payload.status === 'COMPLETED' ? 'completed' : 'active';
                 const currentQuestion = nextQuestionFromSession(state.session);
@@ -219,13 +228,16 @@ const sessionSlice = createSlice({
             .addCase(resumeSessionThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.error?.message || 'Failed to resume session';
+                state.pendingAction = null;
             })
             .addCase(submitAnswerThunk.pending, (state) => {
                 state.loading = true;
                 state.error = null;
+                state.pendingAction = 'submitAnswer';
             })
             .addCase(submitAnswerThunk.fulfilled, (state, action) => {
                 state.loading = false;
+                state.pendingAction = null;
                 const { session, nextQuestion } = action.payload;
                 state.session = session;
                 if (nextQuestion) {
@@ -239,11 +251,21 @@ const sessionSlice = createSlice({
             .addCase(submitAnswerThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.error?.message || 'Failed to submit answer';
+                state.pendingAction = null;
+            })
+            .addCase(finalizeSessionThunk.pending, (state) => {
+                state.pendingAction = 'finalizeSession';
+                state.error = null;
             })
             .addCase(finalizeSessionThunk.fulfilled, (state, action) => {
                 state.session = action.payload;
                 state.status = 'completed';
                 state.timer = { questionId: null, startedAt: null, duration: null, expiresAt: null, pausedAt: null };
+                state.pendingAction = null;
+            })
+            .addCase(finalizeSessionThunk.rejected, (state, action) => {
+                state.pendingAction = null;
+                state.error = action.error?.message || 'Failed to finalize session';
             });
     },
 });

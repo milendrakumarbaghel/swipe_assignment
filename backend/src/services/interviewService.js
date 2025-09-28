@@ -3,6 +3,7 @@ const { generateQuestionsForSession } = require('./questionService');
 const { calculateScore } = require('../utils/scoring');
 const { timeLimits, difficultyOrder } = require('../utils/interviewConfig');
 const { buildSummary } = require('../utils/summary');
+const { isAIEnabled, evaluateAnswer, summarizeCandidate } = require('./aiService');
 
 async function startInterview({ candidate, resume, resumeText }) {
     if (!candidate.email) {
@@ -40,16 +41,21 @@ async function startInterview({ candidate, resume, resumeText }) {
         },
     });
 
-    const questions = await generateQuestionsForSession(session.id);
+    const questions = await generateQuestionsForSession(session, { resumeText });
 
     const firstQuestion = questions.find((question) => question.order === 0);
+
+    const systemMeta = { aiEnabled: isAIEnabled() };
+    if (resumeText) {
+        systemMeta.resumeSummary = resumeText.slice(0, 500);
+    }
 
     await prisma.chatMessage.create({
         data: {
             sessionId: session.id,
             sender: 'SYSTEM',
             content: 'Interview started. You will be asked six questions ranging from easy to hard difficulty.',
-            meta: resumeText ? { resumeSummary: resumeText.slice(0, 500) } : undefined,
+            meta: Object.keys(systemMeta).length ? systemMeta : undefined,
         },
     });
 
@@ -59,7 +65,11 @@ async function startInterview({ candidate, resume, resumeText }) {
                 sessionId: session.id,
                 sender: 'AI',
                 content: firstQuestion.prompt,
-                meta: { difficulty: firstQuestion.difficulty, order: firstQuestion.order },
+                meta: {
+                    difficulty: firstQuestion.difficulty,
+                    order: firstQuestion.order,
+                    aiSource: firstQuestion.templateId ? 'template' : 'ai',
+                },
             },
         });
     }
@@ -101,7 +111,11 @@ async function recordQuestionMessage(sessionId, question) {
             sessionId,
             sender: 'AI',
             content: question.prompt,
-            meta: { difficulty: question.difficulty, order: question.order },
+            meta: {
+                difficulty: question.difficulty,
+                order: question.order,
+                aiSource: question.templateId ? 'template' : 'ai',
+            },
         },
     });
 }
@@ -143,13 +157,38 @@ async function submitAnswer({
     }
 
     const timeLimit = timeLimits[question.difficulty] || 60;
-    const evaluation = calculateScore(
-        normalizedAnswer,
-        question.expectedNote,
-        question.difficulty,
-        normalizedTime,
-        timeLimit
-    );
+    let evaluation = null;
+    let aiEvaluationError = null;
+
+    if (isAIEnabled() && normalizedAnswer) {
+        try {
+            evaluation = await evaluateAnswer({
+                questionPrompt: question.prompt,
+                expectedNote: question.expectedNote,
+                answerText: normalizedAnswer,
+                difficulty: question.difficulty,
+            });
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn(`AI evaluation failed: ${error.message}`);
+            aiEvaluationError = error.message;
+        }
+    }
+
+    if (!evaluation) {
+        evaluation = calculateScore(
+            normalizedAnswer,
+            question.expectedNote,
+            question.difficulty,
+            normalizedTime,
+            timeLimit
+        );
+        if (aiEvaluationError) {
+            evaluation.aiError = aiEvaluationError;
+        } else if (!isAIEnabled()) {
+            evaluation.aiError = 'AI evaluation disabled; using rule-based scoring.';
+        }
+    }
 
     const answer = await prisma.candidateAnswer.create({
         data: {
@@ -184,6 +223,11 @@ async function submitAnswer({
             meta: {
                 score: evaluation.score,
                 questionId: question.id,
+                strengths: evaluation.strengths,
+                improvements: evaluation.improvements,
+                aiSource: evaluation.source,
+                aiModel: evaluation.model,
+                aiError: evaluation.aiError,
             },
         },
     });
@@ -234,6 +278,7 @@ async function finalizeSession(sessionId) {
         return {
             question,
             score: answer?.score || 0,
+            answer,
         };
     });
 
@@ -242,7 +287,36 @@ async function finalizeSession(sessionId) {
         answeredScores.reduce((total, item) => total + item.score, 0) /
         Math.max(answeredScores.length, 1);
 
-    const summary = buildSummary({ candidate: session.candidate, scores: scores });
+    let summary = null;
+    let summarySource = 'heuristic';
+    let summaryError = null;
+
+    if (isAIEnabled()) {
+        try {
+            summary = await summarizeCandidate({
+                candidate: session.candidate,
+                answers: scores.map((item) => ({
+                    difficulty: item.question.difficulty,
+                    questionPrompt: item.question.prompt,
+                    score: item.score,
+                    answerText: item.answer?.responseText,
+                    feedback: item.answer?.aiFeedback,
+                })),
+            });
+            summarySource = 'ai';
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn(`AI summary failed: ${error.message}`);
+            summaryError = error.message;
+        }
+    }
+
+    if (!summary) {
+        summary = buildSummary({ candidate: session.candidate, scores });
+        if (!summaryError && !isAIEnabled()) {
+            summaryError = 'AI summarization disabled; using rule-based summary.';
+        }
+    }
 
     await prisma.interviewSession.update({
         where: { id: sessionId },
@@ -259,6 +333,10 @@ async function finalizeSession(sessionId) {
             sessionId,
             sender: 'SYSTEM',
             content: `Interview complete. Final score: ${finalScore.toFixed(1)}/10. Summary: ${summary}`,
+            meta: {
+                summarySource,
+                aiError: summaryError,
+            },
         },
     });
 

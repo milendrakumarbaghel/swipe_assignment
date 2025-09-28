@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ConfigProvider, Layout, Tabs, Typography, message } from 'antd';
+import { App as AntdApp, ConfigProvider, Layout, Tabs, Typography } from 'antd';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { selectSession, selectUi } from './store';
 import IntervieweeTab from './features/interviewee/IntervieweeTab';
@@ -16,11 +16,12 @@ import './App.css';
 const { Header, Content } = Layout;
 const { Title } = Typography;
 
-function App() {
+function AppContent() {
   const dispatch = useAppDispatch();
   const sessionState = useAppSelector(selectSession);
   const uiState = useAppSelector(selectUi);
   const [resumeLoading, setResumeLoading] = useState(false);
+  const { message } = AntdApp.useApp();
 
   useEffect(() => {
     if (
@@ -82,6 +83,42 @@ function App() {
   );
 
   return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header
+        style={{
+          background: '#fff',
+          borderBottom: '1px solid #f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 24px',
+        }}
+      >
+        <Title level={3} style={{ margin: 0 }}>
+          AI Interview Assistant
+        </Title>
+      </Header>
+      <Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
+        <Tabs
+          activeKey={uiState.activeTab}
+          onChange={handleTabChange}
+          items={tabItems}
+          destroyOnHidden={false}
+        />
+      </Content>
+      <WelcomeBackModal
+        visible={welcomeModalVisible}
+        session={sessionState.session}
+        timer={sessionState.timer}
+        onResume={handleResumeInterview}
+        onDiscard={handleDiscardInterview}
+        confirmLoading={resumeLoading}
+      />
+    </Layout>
+  );
+}
+
+export default function App() {
+  return (
     <ConfigProvider
       theme={{
         token: {
@@ -90,39 +127,9 @@ function App() {
         },
       }}
     >
-      <Layout style={{ minHeight: '100vh' }}>
-        <Header
-          style={{
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 24px',
-          }}
-        >
-          <Title level={3} style={{ margin: 0 }}>
-            AI Interview Assistant
-          </Title>
-        </Header>
-        <Content style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
-          <Tabs
-            activeKey={uiState.activeTab}
-            onChange={handleTabChange}
-            items={tabItems}
-            destroyInactiveTabPane={false}
-          />
-        </Content>
-        <WelcomeBackModal
-          visible={welcomeModalVisible}
-          session={sessionState.session}
-          timer={sessionState.timer}
-          onResume={handleResumeInterview}
-          onDiscard={handleDiscardInterview}
-          confirmLoading={resumeLoading}
-        />
-      </Layout>
+      <AntdApp>
+        <AppContent />
+      </AntdApp>
     </ConfigProvider>
   );
 }
-
-export default App;

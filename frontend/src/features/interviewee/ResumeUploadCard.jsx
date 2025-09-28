@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CloudUploadOutlined } from '@ant-design/icons';
-import { Alert, Card, Upload, message, Typography } from 'antd';
+import { Alert, App as AntdApp, Card, Upload, Typography } from 'antd';
 
 const { Dragger } = Upload;
 const { Paragraph } = Typography;
@@ -9,6 +9,7 @@ const ACCEPTED_TYPES = ['application/pdf', 'application/msword', 'application/vn
 
 export default function ResumeUploadCard({ onUpload, loading, candidate, resume }) {
     const [uploading, setUploading] = useState(false);
+    const { message } = AntdApp.useApp();
 
     const handleUpload = async ({ file, onSuccess, onError }) => {
         if (!ACCEPTED_TYPES.includes(file.type)) {

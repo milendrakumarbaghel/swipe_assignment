@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Button, Card, Input, Space, Typography, message } from 'antd';
+import { App as AntdApp, Button, Card, Input, Space, Typography } from 'antd';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectCandidates } from '../../store';
 import {
@@ -19,6 +19,7 @@ const REFRESH_INTERVAL = 1000 * 10;
 export default function InterviewerTab() {
     const dispatch = useAppDispatch();
     const { items, loading, search, sortField, sortOrder, selectedId, selectedDetail, error } = useAppSelector(selectCandidates);
+    const { message } = AntdApp.useApp();
 
     useEffect(() => {
         dispatch(fetchCandidatesThunk({ search, sortField, sortOrder }));

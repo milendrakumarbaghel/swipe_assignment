@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { Alert, Skeleton, Space, message } from 'antd';
+import { Alert, App as AntdApp, Skeleton, Space } from 'antd';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectSession } from '../../store';
 import { uploadResumeThunk, updateCandidateField, startInterviewThunk } from '../../store/sessionSlice';
@@ -10,7 +10,19 @@ import ChatPanel from './ChatPanel';
 export default function IntervieweeTab() {
     const dispatch = useAppDispatch();
     const sessionState = useAppSelector(selectSession);
-    const { status, candidate, resume, resumeText, missingFields, loading, error, session, timer } = sessionState;
+    const {
+        status,
+        candidate,
+        resume,
+        resumeText,
+        missingFields,
+        loading,
+        error,
+        session,
+        timer,
+        pendingAction,
+    } = sessionState;
+    const { message } = AntdApp.useApp();
 
     useEffect(() => {
         if (error) {
@@ -82,7 +94,13 @@ export default function IntervieweeTab() {
             )}
 
             {(status === 'active' || status === 'paused' || status === 'completed') && session ? (
-                <ChatPanel session={session} status={status} timer={timer} loading={loading} />
+                <ChatPanel
+                    session={session}
+                    status={status}
+                    timer={timer}
+                    loading={loading}
+                    pendingAction={pendingAction}
+                />
             ) : null}
 
             {loading && status === 'active' && !session && <Skeleton active paragraph={{ rows: 4 }} />}
