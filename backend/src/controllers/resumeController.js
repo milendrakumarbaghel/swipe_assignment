@@ -33,6 +33,7 @@ async function uploadResume(req, res, next) {
                 mimetype,
             },
             resumeText: parsed.text,
+            resumeInsights: parsed.insights,
         });
     } catch (error) {
         if (req.file) {

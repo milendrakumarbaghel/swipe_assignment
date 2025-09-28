@@ -2,6 +2,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
+const { deriveResumeInsights } = require('../utils/resumeInsights');
 
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}/;
 const PHONE_REGEX = /(\+\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}/;
@@ -70,6 +71,7 @@ async function extractResumeData({ filePath, mimetype }) {
             email,
             phone,
         },
+        insights: deriveResumeInsights(text),
     };
 }
 

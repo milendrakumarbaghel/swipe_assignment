@@ -3,9 +3,15 @@ const { generateQuestionsForSession } = require('./questionService');
 const { calculateScore } = require('../utils/scoring');
 const { timeLimits, difficultyOrder } = require('../utils/interviewConfig');
 const { buildSummary } = require('../utils/summary');
-const { isAIEnabled, evaluateAnswer, summarizeCandidate } = require('./aiService');
+const { deriveResumeInsights, mergeResumeInsights } = require('../utils/resumeInsights');
+const {
+    isAIEnabled,
+    evaluateAnswer,
+    summarizeCandidate,
+    summarizeResumeForInterview,
+} = require('./aiService');
 
-async function startInterview({ candidate, resume, resumeText }) {
+async function startInterview({ candidate, resume, resumeText, resumeInsights: providedInsights }) {
     if (!candidate.email) {
         const error = new Error('Candidate email is required to start an interview.');
         error.status = 400;
@@ -41,13 +47,38 @@ async function startInterview({ candidate, resume, resumeText }) {
         },
     });
 
-    const questions = await generateQuestionsForSession(session, { resumeText });
+    const heuristicInsights = resumeText ? deriveResumeInsights(resumeText) : null;
+    let resumeInsights = mergeResumeInsights(heuristicInsights, providedInsights);
+
+    if (isAIEnabled() && resumeText) {
+        try {
+            const aiInsights = await summarizeResumeForInterview(resumeText);
+            resumeInsights = mergeResumeInsights(resumeInsights, aiInsights);
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn(`AI resume insights failed: ${error.message}`);
+        }
+    }
+
+    const questions = await generateQuestionsForSession(session, {
+        resumeText,
+        resumeInsights,
+    });
 
     const firstQuestion = questions.find((question) => question.order === 0);
 
     const systemMeta = { aiEnabled: isAIEnabled() };
     if (resumeText) {
         systemMeta.resumeSummary = resumeText.slice(0, 500);
+    }
+    if (resumeInsights) {
+        systemMeta.resumeInsights = {
+            highlights: resumeInsights.highlights,
+            skills: resumeInsights.skills,
+            roles: resumeInsights.roles,
+            experienceYears: resumeInsights.experienceYears,
+            focusAreas: resumeInsights.focusAreas,
+        };
     }
 
     await prisma.chatMessage.create({
@@ -148,6 +179,22 @@ async function submitAnswer({
         const error = new Error('Question not found in session.');
         error.status = 404;
         throw error;
+    }
+
+    const existingAnswer = session.answers.find((ans) => ans.questionId === questionId);
+
+    if (existingAnswer) {
+        const updatedSession = await getSessionById(sessionId);
+        const nextQuestion =
+            updatedSession.status === 'COMPLETED'
+                ? null
+                : await getNextQuestion(sessionId, updatedSession.currentQuestionIndex);
+
+        return {
+            answer: existingAnswer,
+            nextQuestion,
+            session: updatedSession,
+        };
     }
 
     if (question.order !== session.currentQuestionIndex) {

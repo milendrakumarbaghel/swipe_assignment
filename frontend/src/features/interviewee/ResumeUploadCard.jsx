@@ -3,11 +3,11 @@ import { CloudUploadOutlined } from '@ant-design/icons';
 import { Alert, App as AntdApp, Card, Upload, Typography } from 'antd';
 
 const { Dragger } = Upload;
-const { Paragraph } = Typography;
+const { Paragraph, Title } = Typography;
 
 const ACCEPTED_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
-export default function ResumeUploadCard({ onUpload, loading, candidate, resume }) {
+export default function ResumeUploadCard({ onUpload, loading, candidate, resume, resumeInsights }) {
     const [uploading, setUploading] = useState(false);
     const { message } = AntdApp.useApp();
 
@@ -74,6 +74,37 @@ export default function ResumeUploadCard({ onUpload, loading, candidate, resume 
                     showIcon
                 />
             )}
+
+            {resumeInsights && (resumeInsights.highlights?.length || resumeInsights.focusAreas?.length) ? (
+                <Card size="small" style={{ marginTop: 16 }}>
+                    <Title level={5} style={{ marginBottom: 8 }}>
+                        Resume insights
+                    </Title>
+                    {resumeInsights.highlights?.length ? (
+                        <div style={{ marginBottom: resumeInsights.focusAreas?.length ? 12 : 0 }}>
+                            <Paragraph strong>Highlights</Paragraph>
+                            <ul style={{ paddingLeft: 18, marginBottom: 0 }}>
+                                {resumeInsights.highlights.map((item, index) => (
+                                    <li key={`highlight-${index}`}>{item}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null}
+                    {resumeInsights.focusAreas?.length ? (
+                        <div>
+                            <Paragraph strong>Planned focus areas</Paragraph>
+                            <ul style={{ paddingLeft: 18, marginBottom: 0 }}>
+                                {resumeInsights.focusAreas.map((area, index) => (
+                                    <li key={`focus-${index}`}>
+                                        <strong>{area.topic}</strong>
+                                        {area.reason ? ` — ${area.reason}` : ''}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null}
+                </Card>
+            ) : null}
         </Card>
     );
 }

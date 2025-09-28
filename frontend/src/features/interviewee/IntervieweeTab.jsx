@@ -15,6 +15,7 @@ export default function IntervieweeTab() {
         candidate,
         resume,
         resumeText,
+        resumeInsights,
         missingFields,
         loading,
         error,
@@ -76,7 +77,13 @@ export default function IntervieweeTab() {
                 />
             )}
 
-            <ResumeUploadCard onUpload={handleUpload} loading={loading} candidate={candidate} resume={resume} />
+            <ResumeUploadCard
+                onUpload={handleUpload}
+                loading={loading}
+                candidate={candidate}
+                resume={resume}
+                resumeInsights={resumeInsights}
+            />
 
             {(status === 'collecting' || status === 'ready') && (
                 <MissingFieldsForm

@@ -40,12 +40,13 @@ export const uploadResumeThunk = createAsyncThunk('session/uploadResume', async 
 
 export const startInterviewThunk = createAsyncThunk(
     'session/startInterview',
-    async ({ candidate, resume, resumeText }, { getState }) => {
+    async ({ candidate, resume, resumeText, resumeInsights }, { getState }) => {
         const state = getState().session;
         const payload = {
             candidate,
             resume,
             resumeText,
+            resumeInsights,
         };
 
         if (!payload.resume && state.resume) {
@@ -54,6 +55,10 @@ export const startInterviewThunk = createAsyncThunk(
 
         if (!payload.resumeText && state.resumeText) {
             payload.resumeText = state.resumeText;
+        }
+
+        if (!payload.resumeInsights && state.resumeInsights) {
+            payload.resumeInsights = state.resumeInsights;
         }
 
         const data = await startInterview(payload);
@@ -101,6 +106,7 @@ const initialState = {
     },
     resume: null,
     resumeText: '',
+    resumeInsights: null,
     session: null,
     missingFields: ['name', 'email', 'phone'],
     loading: false,
@@ -171,9 +177,10 @@ const sessionSlice = createSlice({
             .addCase(uploadResumeThunk.fulfilled, (state, action) => {
                 state.loading = false;
                 state.pendingAction = null;
-                const { candidate, resume, resumeText } = action.payload;
+                const { candidate, resume, resumeText, resumeInsights } = action.payload;
                 state.resume = resume;
                 state.resumeText = resumeText;
+                state.resumeInsights = resumeInsights || null;
                 state.candidate = {
                     ...state.candidate,
                     ...candidate,

@@ -96,6 +96,7 @@ export default function ChatPanel({
         const elapsed = timer?.startedAt ? dayjs().diff(dayjs(timer.startedAt), 'second') : 0;
 
         try {
+            autoSubmitRef.current = true;
             await dispatch(
                 submitAnswerThunk({
                     sessionId: session.id,
@@ -109,6 +110,7 @@ export default function ChatPanel({
             setAnswer('');
             autoSubmitRef.current = false;
         } catch (error) {
+            autoSubmitRef.current = false;
             message.error(error.message || 'Failed to submit answer');
         }
     };
