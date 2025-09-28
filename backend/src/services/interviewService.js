@@ -78,6 +78,9 @@ async function startInterview({ candidate, resume, resumeText, resumeInsights: p
             roles: resumeInsights.roles,
             experienceYears: resumeInsights.experienceYears,
             focusAreas: resumeInsights.focusAreas,
+            uniqueDetails: resumeInsights.uniqueDetails || [],
+            projectTypes: resumeInsights.projectTypes || [],
+            industryContext: resumeInsights.industryContext,
         };
     }
 

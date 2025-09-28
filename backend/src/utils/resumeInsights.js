@@ -260,6 +260,14 @@ function mergeResumeInsights(primary = null, secondary = null) {
         limit: 6,
     });
 
+    // Handle new fields from enhanced AI analysis
+    const combinedUniqueDetails = uniqueStrings([...(base.uniqueDetails || []), ...(extra.uniqueDetails || [])], {
+        limit: 5,
+    });
+    const combinedProjectTypes = uniqueStrings([...(base.projectTypes || []), ...(extra.projectTypes || [])], {
+        limit: 8,
+    });
+
     const focusMap = new Map();
     [...(base.focusAreas || []), ...(extra.focusAreas || [])].forEach((focus) => {
         if (!focus || !focus.topic) return;
@@ -274,6 +282,7 @@ function mergeResumeInsights(primary = null, secondary = null) {
 
     const mergedFocus = Array.from(focusMap.values()).slice(0, 6);
     const experienceYears = extra.experienceYears || base.experienceYears || null;
+    const industryContext = extra.industryContext || base.industryContext || null;
 
     return {
         highlights: combinedHighlights,
@@ -281,6 +290,9 @@ function mergeResumeInsights(primary = null, secondary = null) {
         roles: combinedRoles,
         focusAreas: mergedFocus,
         experienceYears,
+        uniqueDetails: combinedUniqueDetails,
+        projectTypes: combinedProjectTypes,
+        industryContext,
     };
 }
 

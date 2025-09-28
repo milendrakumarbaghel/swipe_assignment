@@ -19,14 +19,53 @@ function buildFocusHints(resumeInsights) {
         return focusAreas.slice(0, 8);
     }
 
-    if (Array.isArray(resumeInsights?.skills) && resumeInsights.skills.length) {
-        return resumeInsights.skills.slice(0, 6).map((skill) => ({
-            topic: skill,
-            reason: `Resume highlights ${skill}; explore applied experience.`,
-        }));
+    // Use enhanced insights from AI analysis
+    const hints = [];
+
+    // Create focus hints from unique details
+    if (Array.isArray(resumeInsights?.uniqueDetails)) {
+        resumeInsights.uniqueDetails.slice(0, 3).forEach((detail) => {
+            hints.push({
+                topic: `Experience with ${detail}`,
+                reason: `Ask about specific challenges and solutions from their ${detail} experience.`,
+            });
+        });
     }
 
-    return DEFAULT_FOCUS_TOPICS.slice(0, 6);
+    // Create focus hints from project types
+    if (Array.isArray(resumeInsights?.projectTypes)) {
+        resumeInsights.projectTypes.slice(0, 2).forEach((projectType) => {
+            hints.push({
+                topic: `${projectType} development`,
+                reason: `Probe deeper into their ${projectType} architecture and implementation decisions.`,
+            });
+        });
+    }
+
+    // Add industry-specific questions if we have industry context
+    if (resumeInsights?.industryContext) {
+        hints.push({
+            topic: `Domain expertise in ${resumeInsights.industryContext}`,
+            reason: `Explore how they apply technical skills to solve ${resumeInsights.industryContext} domain problems.`,
+        });
+    }
+
+    // Fall back to skill-based hints if we have skills
+    if (Array.isArray(resumeInsights?.skills) && resumeInsights.skills.length && hints.length < 4) {
+        resumeInsights.skills.slice(0, 6 - hints.length).forEach((skill) => {
+            hints.push({
+                topic: skill,
+                reason: `Resume highlights ${skill}; explore applied experience and best practices.`,
+            });
+        });
+    }
+
+    // Final fallback to default topics
+    if (hints.length === 0) {
+        return DEFAULT_FOCUS_TOPICS.slice(0, 6);
+    }
+
+    return hints.slice(0, 6);
 }
 
 function matchesFocusTarget(value, focusLower) {
@@ -210,36 +249,51 @@ async function generateQuestionsForSession(session, { resumeText, resumeInsights
         const focusHint = shuffledFocusHints.length ? shuffledFocusHints[index % shuffledFocusHints.length] : null;
 
         if (isAIEnabled()) {
-            try {
-                const aiQuestion = await generateQuestion({
-                    difficulty,
-                    resumeText,
-                    askedTopics,
-                    candidateName,
-                    resumeInsights,
-                    targetFocus: focusHint,
-                });
+            let aiAttempts = 0;
+            const maxAttempts = 2;
 
-                questionRecord = await prisma.interviewQuestion.create({
-                    data: {
-                        sessionId,
-                        order: index,
+            while (aiAttempts < maxAttempts && !questionRecord) {
+                try {
+                    const aiQuestion = await generateQuestion({
                         difficulty,
-                        prompt: aiQuestion.prompt,
-                        expectedNote: aiQuestion.expectedNote,
-                    },
-                });
+                        resumeText,
+                        askedTopics,
+                        candidateName,
+                        resumeInsights,
+                        targetFocus: focusHint,
+                    });
 
-                if (aiQuestion.topic) {
-                    askedTopics.push(aiQuestion.topic);
-                } else if (focusHint?.topic) {
-                    askedTopics.push(focusHint.topic);
-                } else {
-                    askedTopics.push(aiQuestion.prompt.slice(0, 80));
+                    questionRecord = await prisma.interviewQuestion.create({
+                        data: {
+                            sessionId,
+                            order: index,
+                            difficulty,
+                            prompt: aiQuestion.prompt,
+                            expectedNote: aiQuestion.expectedNote,
+                        },
+                    });
+
+                    if (aiQuestion.topic) {
+                        askedTopics.push(aiQuestion.topic);
+                    } else if (focusHint?.topic) {
+                        askedTopics.push(focusHint.topic);
+                    } else {
+                        askedTopics.push(aiQuestion.prompt.slice(0, 80));
+                    }
+
+                    // Log successful personalization for debugging
+                    if (aiQuestion.personalization) {
+                        console.log(`Generated personalized question for ${difficulty}: ${aiQuestion.personalization}`);
+                    }
+
+                    break; // Success, exit retry loop
+                } catch (error) {
+                    aiAttempts++;
+                    console.warn(`AI question generation attempt ${aiAttempts} failed for ${difficulty}: ${error.message}`);
+                    if (aiAttempts >= maxAttempts) {
+                        console.warn(`Failed to generate AI question after ${maxAttempts} attempts, falling back to template/bank`);
+                    }
                 }
-            } catch (error) {
-                // eslint-disable-next-line no-console
-                console.warn(`AI question generation failed for ${difficulty}: ${error.message}`);
             }
         }
 
