@@ -8,7 +8,10 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandlers');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: 'https://swipe-assignment-theta.vercel.app',
+    credentials: true
+}));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
